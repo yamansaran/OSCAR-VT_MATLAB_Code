@@ -1,0 +1,1382 @@
+%% Batch Constellation Delta-V Comparison
+% Runs delta-V analysis for all constellations and generates comparison
+%
+% Author: Yaman Saran
+% Organization: OSCAR@VT
+% Date: January 2025
+
+clear; clc; close all;
+
+% Start logging all command window output to file
+diary('batch_output.txt');
+diary on;
+
+fprintf('=======================================================================\n');
+fprintf('BATCH CONSTELLATION DELTA-V COMPARISON\n');
+fprintf('Run date: %s\n', datestr(now));
+fprintf('=======================================================================\n\n');
+
+%% Parameters
+TOTAL_TIME_CONSTRAINT = 3600 * 24 * 365;  % 365 days per constellation
+RAAN_TOLERANCE = 15.0;
+MU_EARTH = 3.986004418e14;
+R_EARTH = 6378.137e3;
+TLE_CACHE_HOURS = 3;  % Hours before TLE cache expires
+
+%% List of all constellation CSV files (without .csv extension)
+constellations = {'poesItos', 'poesItosNarrow', 'poesItosLandsat','poesItosLandsatJPSS', 'poesItosExtended','poesItosAllClients', 'DMSP', 'Selected'};
+%Old 'gpsLegacy', 'gpsDecommissioned', 'iridiumCurrent', ...
+                 % 'iridiumDecomAlive', 'globalstar', 'goes', 'wgs', ...
+                 % 'tdrss', 'jpss', 
+
+%% Run analysis for each constellation
+results = table('Size', [length(constellations), 8], ...
+    'VariableTypes', {'string', 'double', 'double', 'double', 'double', 'double', 'double', 'double'}, ...
+    'VariableNames', {'Constellation', 'NumSatellites', 'NumPlanes', ...
+                      'AvgAltitude_km', 'PhasingDV_ms', 'PlaneChangeDV_ms', ...
+                      'TotalDV_ms', 'TotalDV_kms'});
+
+fprintf('========================================\n');
+fprintf('CONSTELLATION DELTA-V COMPARISON\n');
+fprintf('Time constraint: %.1f days\n', TOTAL_TIME_CONSTRAINT/(24*3600));
+fprintf('========================================\n\n');
+
+validConstellations = 0;
+
+for c = 1:length(constellations)
+    constellation = constellations{c};
+    csvFile = [constellation, '.csv'];
+    
+    % Check if file exists
+    if ~isfile(csvFile)
+        fprintf('WARNING: %s not found, skipping...\n', csvFile);
+        continue;
+    end
+    
+    validConstellations = validConstellations + 1;
+    
+    % Load satellite data
+    try
+        satellites = loadJCATFormat(csvFile, TLE_CACHE_HOURS);
+    catch ME
+        fprintf('ERROR loading %s: %s\n', csvFile, ME.message);
+        validConstellations = validConstellations - 1;  % Don't count failed loads
+        continue;
+    end
+    
+    nSatellites = length(satellites);
+    
+    if nSatellites == 0
+        fprintf('WARNING: No valid satellites in %s, skipping...\n', csvFile);
+        validConstellations = validConstellations - 1;  % Don't count empty constellations
+        continue;
+    end
+    
+    % Calculate average altitude
+    avgAlt = mean([satellites.a]) / 1e3 - 6378.137;
+    
+    % Group into planes
+    planes = groupIntoPlanes(satellites, RAAN_TOLERANCE);
+    nPlanes = length(planes);
+    
+    % Print detailed satellite listing by plane
+    fprintf('\n%s\n', repmat('=', 1, 90));
+    fprintf('CONSTELLATION: %s\n', upper(constellation));
+    fprintf('%d satellites across %d orbital planes\n', nSatellites, nPlanes);
+    fprintf('%s\n', repmat('=', 1, 90));
+    
+    for p = 1:nPlanes
+        fprintf('\n  PLANE %d: RAAN = %.2f deg, Inc = %.2f deg (%d satellites)\n', ...
+            p, planes(p).raan, planes(p).inc, length(planes(p).satellites));
+        fprintf('  %s\n', repmat('-', 1, 85));
+        fprintf('    %-35s %12s %12s %12s\n', 'Satellite Name', 'Alt (km)', 'Inc (deg)', 'Ecc');
+        fprintf('    %s\n', repmat('-', 1, 80));
+        
+        for j = 1:length(planes(p).satellites)
+            sat = planes(p).satellites(j);
+            alt = (sat.a / 1e3) - 6378.137;
+            fprintf('    %-35s %12.1f %12.2f %12.6f\n', ...
+                sat.name, alt, sat.i, sat.e);
+        end
+    end
+    fprintf('\n');
+    
+    % Optimize plane order using TSP solver
+    [planeOrder, totalPlaneChangeCost] = solvePlaneTSP(planes);
+    
+    % Print optimized plane visit order
+    fprintf('  Optimized plane visit order: ');
+    for p = 1:nPlanes
+        fprintf('%d', planeOrder(p));
+        if p < nPlanes
+            fprintf(' -> ');
+        end
+    end
+    fprintf('\n');
+    fprintf('  (RAANs: ');
+    for p = 1:nPlanes
+        fprintf('%.1f', planes(planeOrder(p)).raan);
+        if p < nPlanes
+            fprintf(' -> ');
+        end
+    end
+    fprintf(')\n\n');
+    
+    % Calculate time allocation
+    nPlaneChanges = nPlanes - 1;
+    timeForPhasing = TOTAL_TIME_CONSTRAINT * 0.7;
+    timeForPlaneChanges = TOTAL_TIME_CONSTRAINT * 0.3;
+    timePerSatPhasing = timeForPhasing / max(nSatellites - nPlanes, 1);
+    timePerPlaneChange = timeForPlaneChanges / max(nPlaneChanges, 1);
+    
+    % Calculate delta-V
+    totalPhasingDV = 0;
+    totalPlaneChangeDV = 0;
+    
+    for i = 1:nPlanes
+        planeIdx = planeOrder(i);
+        plane = planes(planeIdx);
+        
+        % Phasing within plane
+        [phasingDV, ~, ~] = calculatePhasingDV(plane.satellites, timePerSatPhasing, MU_EARTH);
+        totalPhasingDV = totalPhasingDV + phasingDV;
+        
+        % Plane change to next plane
+        if i < nPlanes
+            nextPlaneIdx = planeOrder(i + 1);
+            nextPlane = planes(nextPlaneIdx);
+            currentSat = plane.satellites(end);
+            nextSat = nextPlane.satellites(1);
+            planeChangeDV = calculatePlaneChangeDV(currentSat, nextSat, MU_EARTH);
+            totalPlaneChangeDV = totalPlaneChangeDV + planeChangeDV;
+        end
+    end
+    
+    totalDV = totalPhasingDV + totalPlaneChangeDV;
+    
+    % Store results
+    results.Constellation(validConstellations) = constellation;
+    results.NumSatellites(validConstellations) = nSatellites;
+    results.NumPlanes(validConstellations) = nPlanes;
+    results.AvgAltitude_km(validConstellations) = avgAlt;
+    results.PhasingDV_ms(validConstellations) = totalPhasingDV;
+    results.PlaneChangeDV_ms(validConstellations) = totalPlaneChangeDV;
+    results.TotalDV_ms(validConstellations) = totalDV;
+    results.TotalDV_kms(validConstellations) = totalDV / 1000;
+    
+    fprintf('%20s: %2d sats, %2d planes, Alt=%6.0f km, Total dV = %8.1f m/s (%.2f km/s)\n', ...
+        constellation, nSatellites, nPlanes, avgAlt, totalDV, totalDV/1000);
+end
+
+% Trim results table
+results = results(1:validConstellations, :);
+
+%% Sort by total delta-V
+results = sortrows(results, 'TotalDV_ms');
+
+fprintf('\n========================================\n');
+fprintf('RANKED BY DELTA-V (LOWEST TO HIGHEST)\n');
+fprintf('========================================\n');
+disp(results);
+
+%% Create visualization
+figure('Position', [100, 100, 1400, 600]);
+
+% Bar chart of delta-V breakdown
+subplot(1, 3, 1);
+barData = [results.PhasingDV_ms, results.PlaneChangeDV_ms] / 1000;
+b = bar(barData, 'stacked');
+b(1).FaceColor = [0.2, 0.6, 0.8];
+b(2).FaceColor = [0.8, 0.4, 0.2];
+set(gca, 'XTickLabel', results.Constellation, 'XTickLabelRotation', 45);
+xlabel('Constellation');
+ylabel('Delta-V (km/s)');
+title('Delta-V Breakdown by Constellation');
+legend('Phasing', 'Plane Changes', 'Location', 'northwest');
+grid on;
+
+% Scatter plot: altitude vs delta-V (log scale for altitude)
+subplot(1, 3, 2);
+scatter(results.AvgAltitude_km, results.TotalDV_kms, 100, results.NumPlanes, 'filled');
+set(gca, 'XScale', 'log');
+cb = colorbar;
+cb.Label.String = 'Number of Planes';
+xlabel('Average Altitude (km)');
+ylabel('Total Delta-V (km/s)');
+title('Delta-V vs Orbital Altitude');
+grid on;
+
+% Add constellation labels
+for i = 1:height(results)
+    if ~ismissing(results.Constellation(i))
+        text(results.AvgAltitude_km(i) * 1.05, results.TotalDV_kms(i), ...
+            convertStringsToChars(results.Constellation(i)), 'FontSize', 7);
+    end
+end
+
+% Scatter plot: satellites vs delta-V per satellite
+subplot(1, 3, 3);
+dvPerSat = results.TotalDV_ms ./ results.NumSatellites;
+scatter(results.NumSatellites, dvPerSat, 100, results.AvgAltitude_km/1000, 'filled');
+cb2 = colorbar;
+cb2.Label.String = 'Altitude (1000 km)';
+xlabel('Number of Satellites');
+ylabel('Delta-V per Satellite (m/s)');
+title('Efficiency: Delta-V per Satellite');
+grid on;
+
+% Add constellation labels
+for i = 1:height(results)
+    if ~ismissing(results.Constellation(i))
+        text(results.NumSatellites(i) + 0.5, dvPerSat(i), ...
+            convertStringsToChars(results.Constellation(i)), 'FontSize', 7);
+    end
+end
+
+sgtitle('Constellation Servicing Delta-V Analysis', 'FontSize', 14, 'FontWeight', 'bold');
+
+% Save figure
+saveas(gcf, 'constellation_comparison.png');
+fprintf('\nFigure saved as constellation_comparison.png\n');
+
+%% Export results to CSV
+writetable(results, 'constellation_dv_results.csv');
+fprintf('Results saved to constellation_dv_results.csv\n');
+
+%% Export results in custom order
+customOrder = {'poesItos', 'poesItosNarrow', 'poesItosLandsat','poesItosLandsatJPSS','poesItosExtended','poesItosAllClients', 'DMSP', 'Selected'};
+
+orderedResults = table('Size', [0, width(results)], ...
+    'VariableTypes', varfun(@class, results, 'OutputFormat', 'cell'), ...
+    'VariableNames', results.Properties.VariableNames);
+
+for i = 1:length(customOrder)
+    idx = find(results.Constellation == customOrder{i});
+    if ~isempty(idx)
+        orderedResults = [orderedResults; results(idx, :)];
+    end
+end
+
+writetable(orderedResults, 'constellation_dv_results_custom_order.csv');
+fprintf('Results saved to constellation_dv_results_custom_order.csv\n');
+
+%% Update running average file (only if this TLE data hasn't been logged yet)
+historyFile = 'constellation_dv_history.txt';
+
+% Get cache timestamp
+cacheFile = 'tle_cache.txt';
+cacheDateStr = '';
+if isfile(cacheFile)
+    fid = fopen(cacheFile, 'r');
+    if fid ~= -1
+        firstLine = fgetl(fid);
+        fclose(fid);
+        if startsWith(firstLine, 'CACHE_DATE:')
+            cacheDateStr = strtrim(firstLine(12:end));
+        end
+    end
+end
+
+% Check if this cache timestamp already exists in history
+newDataToLog = false;
+if ~isempty(cacheDateStr)
+    if isfile(historyFile)
+        historyText = fileread(historyFile);
+        if ~contains(historyText, ['DATE: ' cacheDateStr])
+            newDataToLog = true;
+        end
+    else
+        newDataToLog = true;  % No history file yet
+    end
+end
+
+% Only add to history if this TLE data hasn't been logged before
+if newDataToLog
+    fprintf('\nNew TLE data to log - updating running average file...\n');
+    
+    % Append today's results to history file
+    fid = fopen(historyFile, 'a');
+    if fid ~= -1
+        fprintf(fid, '================================================================================\n');
+        fprintf(fid, 'DATE: %s\n', cacheDateStr);
+        fprintf(fid, '================================================================================\n');
+        fprintf(fid, '%-20s %12s %12s %12s %12s\n', 'Constellation', 'Phasing(m/s)', 'PlaneChg(m/s)', 'Total(m/s)', 'Total(km/s)');
+        fprintf(fid, '%s\n', repmat('-', 1, 80));
+        
+        for i = 1:height(results)
+            fprintf(fid, '%-20s %12.2f %12.2f %12.2f %12.4f\n', ...
+                convertStringsToChars(results.Constellation(i)), ...
+                results.PhasingDV_ms(i), ...
+                results.PlaneChangeDV_ms(i), ...
+                results.TotalDV_ms(i), ...
+                results.TotalDV_kms(i));
+        end
+        fprintf(fid, '\n');
+        fclose(fid);
+        
+        fprintf('Results appended to %s\n', historyFile);
+    end
+else
+    fprintf('\nUsing cached TLE data - running average file not updated.\n');
+end
+
+%% Calculate and display running averages
+if isfile(historyFile)
+    % Parse history file to extract all results
+    historyText = fileread(historyFile);
+    datePattern = 'DATE: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})';
+    dates = regexp(historyText, datePattern, 'tokens');
+    numDates = length(dates);
+    
+    if numDates > 0
+        fprintf('\n========================================\n');
+        fprintf('RUNNING AVERAGE ANALYSIS (%d data points)\n', numDates);
+        fprintf('========================================\n');
+        
+        % Initialize storage for averaging
+        % Use ALL constellations from history AND current results
+        allConstellations = unique(results.Constellation);
+        
+        % Also extract constellation names from history to include any that might not be in current run
+        histConstellations = {};
+        lines = strsplit(historyText, '\n');
+        for lineIdx = 1:length(lines)
+            line = strtrim(lines{lineIdx});
+            if ~isempty(line) && ~startsWith(line, '=') && ~startsWith(line, '-') && ...
+               ~startsWith(line, 'DATE:') && ~startsWith(line, 'Constellation')
+                parts = strsplit(line);
+                if length(parts) >= 4
+                    % Check if first part looks like a constellation name (not a number)
+                    if isnan(str2double(parts{1}))
+                        histConstellations{end+1} = parts{1};
+                    end
+                end
+            end
+        end
+        
+        % Combine current and historical constellations
+        if ~isempty(histConstellations)
+            allConstellations = unique([cellstr(allConstellations); histConstellations']);
+        end
+        
+        avgData = struct();
+        for i = 1:length(allConstellations)
+            if iscell(allConstellations)
+                cName = allConstellations{i};
+            else
+                cName = convertStringsToChars(allConstellations(i));
+            end
+            avgData.(matlab.lang.makeValidName(cName)).totals = [];
+            avgData.(matlab.lang.makeValidName(cName)).phasing = [];
+            avgData.(matlab.lang.makeValidName(cName)).planechange = [];
+        end
+        
+        % Parse each date block
+        currentDate = '';
+        for lineIdx = 1:length(lines)
+            line = strtrim(lines{lineIdx});
+            
+            if startsWith(line, 'DATE:')
+                currentDate = strtrim(line(6:end));
+            elseif ~isempty(currentDate) && ~isempty(line) && ...
+                   ~startsWith(line, '=') && ~startsWith(line, '-') && ...
+                   ~startsWith(line, 'Constellation')
+                
+                % Parse data line
+                parts = strsplit(line);
+                if length(parts) >= 4
+                    cName = parts{1};
+                    validName = matlab.lang.makeValidName(cName);
+                    
+                    if isfield(avgData, validName)
+                        phasing = str2double(parts{2});
+                        planechange = str2double(parts{3});
+                        total = str2double(parts{4});
+                        
+                        if ~isnan(total)
+                            avgData.(validName).totals(end+1) = total;
+                            avgData.(validName).phasing(end+1) = phasing;
+                            avgData.(validName).planechange(end+1) = planechange;
+                        end
+                    end
+                end
+            end
+        end
+        
+        % Display running averages
+        fprintf('\n%-20s %6s %12s %12s %12s %12s %10s\n', 'Constellation', 'N', 'AvgPhasing', 'AvgPlaneChg', 'AvgTotal(m/s)', 'StdDev(m/s)', 'StdDev(%)');
+        fprintf('%s\n', repmat('-', 1, 95));
+        
+        for i = 1:length(allConstellations)
+            if iscell(allConstellations)
+                cName = allConstellations{i};
+            else
+                cName = convertStringsToChars(allConstellations(i));
+            end
+            validName = matlab.lang.makeValidName(cName);
+            
+            if isfield(avgData, validName) && ~isempty(avgData.(validName).totals)
+                n = length(avgData.(validName).totals);
+                avgPhasing = mean(avgData.(validName).phasing);
+                avgPlaneChg = mean(avgData.(validName).planechange);
+                avgTotal = mean(avgData.(validName).totals);
+                stdTotal = std(avgData.(validName).totals);
+                if avgTotal > 0
+                    stdPct = (stdTotal / avgTotal) * 100;
+                else
+                    stdPct = 0;
+                end
+                
+                fprintf('%-20s %6d %12.2f %12.2f %12.2f %12.2f %9.2f%%\n', ...
+                    cName, n, avgPhasing, avgPlaneChg, avgTotal, stdTotal, stdPct);
+            end
+        end
+        
+        % List all dates in history
+        fprintf('\nDates in history:\n');
+        for i = 1:numDates
+            fprintf('  %d. %s\n', i, dates{i}{1});
+        end
+        
+        % Export running averages to CSV
+        runningAvgTable = table('Size', [length(allConstellations), 7], ...
+            'VariableTypes', {'string', 'double', 'double', 'double', 'double', 'double', 'double'}, ...
+            'VariableNames', {'Constellation', 'NumDataPoints', 'AvgPhasing_ms', ...
+                              'AvgPlaneChange_ms', 'AvgTotal_ms', 'StdDev_ms', 'StdDev_pct'});
+        
+        validIdx = 0;
+        for i = 1:length(allConstellations)
+            if iscell(allConstellations)
+                cName = allConstellations{i};
+            else
+                cName = convertStringsToChars(allConstellations(i));
+            end
+            validName = matlab.lang.makeValidName(cName);
+            
+            if isfield(avgData, validName) && ~isempty(avgData.(validName).totals)
+                validIdx = validIdx + 1;
+                n = length(avgData.(validName).totals);
+                avgPhasing = mean(avgData.(validName).phasing);
+                avgPlaneChg = mean(avgData.(validName).planechange);
+                avgTotal = mean(avgData.(validName).totals);
+                stdTotal = std(avgData.(validName).totals);
+                if avgTotal > 0
+                    stdPct = (stdTotal / avgTotal) * 100;
+                else
+                    stdPct = 0;
+                end
+                
+                runningAvgTable.Constellation(validIdx) = cName;
+                runningAvgTable.NumDataPoints(validIdx) = n;
+                runningAvgTable.AvgPhasing_ms(validIdx) = avgPhasing;
+                runningAvgTable.AvgPlaneChange_ms(validIdx) = avgPlaneChg;
+                runningAvgTable.AvgTotal_ms(validIdx) = avgTotal;
+                runningAvgTable.StdDev_ms(validIdx) = stdTotal;
+                runningAvgTable.StdDev_pct(validIdx) = stdPct;
+            end
+        end
+        
+        % Trim table to valid entries
+        runningAvgTable = runningAvgTable(1:validIdx, :);
+        
+        % Apply custom ordering
+        customOrderAvg = {'poesItos', 'poesItosNarrow', 'poesItosLandsat','poesItosLandsatJPSS','poesItosExtended','poesItosAllClients', 'DMSP', 'Selected'};
+        
+        orderedRunningAvg = table('Size', [0, width(runningAvgTable)], ...
+            'VariableTypes', varfun(@class, runningAvgTable, 'OutputFormat', 'cell'), ...
+            'VariableNames', runningAvgTable.Properties.VariableNames);
+        
+        for i = 1:length(customOrderAvg)
+            idx = find(runningAvgTable.Constellation == customOrderAvg{i});
+            if ~isempty(idx)
+                orderedRunningAvg = [orderedRunningAvg; runningAvgTable(idx, :)];
+            end
+        end
+        
+        % Add any constellations not in custom order at the end
+        for i = 1:height(runningAvgTable)
+            cName = convertStringsToChars(runningAvgTable.Constellation(i));
+            if ~any(strcmp(customOrderAvg, cName))
+                orderedRunningAvg = [orderedRunningAvg; runningAvgTable(i, :)];
+            end
+        end
+        
+        % Save to CSV
+        writetable(orderedRunningAvg, 'constellation_running_averages.csv');
+        fprintf('\nRunning averages saved to constellation_running_averages.csv\n');
+    end
+end
+
+% Stop logging
+fprintf('\n=======================================================================\n');
+fprintf('Analysis complete. Output saved to batch_output.txt\n');
+fprintf('=======================================================================\n');
+diary off;
+
+%% ===================== HELPER FUNCTIONS =====================
+
+function satellites = loadJCATFormat(filename, tleCacheHours)
+    % Load satellite data from JCAT format CSV file
+    % Fetches accurate RAAN, AoP, and MA from CelesTrak TLEs using NORAD ID
+    
+    if nargin < 2
+        tleCacheHours = 4;
+    end
+    
+    opts = detectImportOptions(filename);
+    opts.VariableNamingRule = 'preserve';
+    
+    % Suppress datetime ambiguity warnings by treating date columns as text
+    for i = 1:length(opts.VariableTypes)
+        if strcmp(opts.VariableTypes{i}, 'datetime')
+            opts.VariableTypes{i} = 'char';
+        end
+    end
+    
+    data = readtable(filename, opts);
+    
+    colNames = data.Properties.VariableNames;
+    
+    nameCol = findColumn(colNames, {'Name', 'name', 'TF'});
+    jcatCol = findColumn(colNames, {'#JCAT', 'JCAT', 'NORAD', 'CatalogNumber', 'TOp'});
+    periCol = findColumn(colNames, {'DispPeri', 'UNPerigee'});
+    apoCol = findColumn(colNames, {'DispApo', 'UNApogee'});
+    incCol = findColumn(colNames, {'DispInc', 'UNInc'});
+    raanCol = findColumn(colNames, {'RAAN', 'raan', 'DispRAAN', 'UNRaan'});
+    
+    nSats = height(data);
+    satellites = struct('name', cell(1, nSats), 'a', cell(1, nSats), ...
+                        'e', cell(1, nSats), 'i', cell(1, nSats), ...
+                        'raan', cell(1, nSats), 'aop', cell(1, nSats), ...
+                        'ma', cell(1, nSats), 'norad', cell(1, nSats));
+    
+    % Collect NORAD IDs for batch TLE fetch
+    noradIDs = [];
+    validRows = [];
+    
+    for k = 1:nSats
+        peri = getNumericValue(data, k, periCol);
+        apo = getNumericValue(data, k, apoCol);
+        inc = getNumericValue(data, k, incCol);
+        
+        if isnan(peri) || isnan(apo) || isnan(inc) || peri <= 0 || apo <= 0
+            continue;
+        end
+        
+        if ~isempty(jcatCol)
+            jcatVal = data{k, jcatCol};
+            if iscell(jcatVal)
+                jcatStr = jcatVal{1};
+            else
+                jcatStr = char(jcatVal);
+            end
+            noradID = extractNoradID(jcatStr);
+        else
+            noradID = NaN;
+        end
+        
+        if ~isnan(noradID)
+            noradIDs(end+1) = noradID;
+            validRows(end+1) = k;
+        end
+    end
+    
+    % Fetch TLEs from CelesTrak
+    tleData = fetchTLEsFromCelesTrak(noradIDs, tleCacheHours);
+    
+    % Build satellite structures with TLE data
+    validCount = 0;
+    
+    for idx = 1:length(validRows)
+        k = validRows(idx);
+        noradID = noradIDs(idx);
+        
+        validCount = validCount + 1;
+        
+        if ~isempty(nameCol)
+            nameVal = data{k, nameCol};
+            if iscell(nameVal)
+                satellites(validCount).name = nameVal{1};
+            else
+                satellites(validCount).name = char(nameVal);
+            end
+        else
+            satellites(validCount).name = sprintf('SAT-%d', noradID);
+        end
+        
+        satellites(validCount).name = strrep(satellites(validCount).name, '[', '');
+        satellites(validCount).name = strrep(satellites(validCount).name, ']', '');
+        satellites(validCount).norad = noradID;
+        
+        if isfield(tleData, sprintf('n%d', noradID))
+            tle = tleData.(sprintf('n%d', noradID));
+            satellites(validCount).a = tle.a;
+            satellites(validCount).e = tle.e;
+            satellites(validCount).i = tle.i;
+            satellites(validCount).raan = tle.raan;
+            satellites(validCount).aop = tle.aop;
+            satellites(validCount).ma = tle.ma;
+        else
+            peri = getNumericValue(data, k, periCol);
+            apo = getNumericValue(data, k, apoCol);
+            inc = getNumericValue(data, k, incCol);
+            
+            R_EARTH_KM = 6378.137;
+            r_peri = (peri + R_EARTH_KM) * 1e3;
+            r_apo = (apo + R_EARTH_KM) * 1e3;
+            
+            satellites(validCount).a = (r_peri + r_apo) / 2;
+            satellites(validCount).e = (r_apo - r_peri) / (r_apo + r_peri);
+            satellites(validCount).i = inc;
+            
+            if ~isempty(raanCol)
+                satellites(validCount).raan = getNumericValue(data, k, raanCol);
+            else
+                satellites(validCount).raan = 0;
+            end
+            satellites(validCount).aop = 0;
+            satellites(validCount).ma = mod(validCount * 45, 360);
+        end
+    end
+    
+    satellites = satellites(1:validCount);
+end
+
+function noradID = extractNoradID(jcatStr)
+    jcatStr = strtrim(char(jcatStr));
+    if ~isempty(jcatStr) && upper(jcatStr(1)) == 'S'
+        jcatStr = jcatStr(2:end);
+    end
+    numStr = regexp(jcatStr, '\d+', 'match', 'once');
+    if ~isempty(numStr)
+        noradID = str2double(numStr);
+    else
+        noradID = NaN;
+    end
+end
+
+function tleData = fetchTLEsFromCelesTrak(noradIDs, tleCacheHours)
+    % Fetch TLEs from CelesTrak with configurable caching
+    % Only updates cache timestamp when cache is expired (not when adding missing sats)
+    
+    if nargin < 2
+        tleCacheHours = 4;
+    end
+    
+    cacheFile = 'tle_cache.txt';
+    tleData = struct();
+    nSats = length(noradIDs);
+    
+    % Check if cache exists and is less than tleCacheHours old
+    cacheValid = false;
+    cachedTLEs = struct();
+    originalCacheTimestamp = '';
+    
+    if isfile(cacheFile)
+        fid = fopen(cacheFile, 'r');
+        if fid ~= -1
+            firstLine = fgetl(fid);
+            fclose(fid);
+            
+            if startsWith(firstLine, 'CACHE_DATE:')
+                cacheDateStr = strtrim(firstLine(12:end));
+                originalCacheTimestamp = cacheDateStr;
+                try
+                    cacheDateTime = datenum(cacheDateStr, 'yyyy-mm-dd HH:MM:SS');
+                    hoursSinceCache = (now - cacheDateTime) * 24;
+                    
+                   if hoursSinceCache < tleCacheHours
+                        cacheValid = true;
+                        cachedTLEs = loadTLECache(cacheFile);
+                        fprintf('Using cached TLE data (%.1f hours old, timestamp: %s)\n', hoursSinceCache, cacheDateStr);
+                    else
+                        fprintf('Cache expired (%.1f hours old), fetching new TLE data...\n', hoursSinceCache);
+                    end
+                catch
+                    fprintf('Invalid cache date format, fetching new TLE data...\n');
+                end
+            end
+        end
+    end
+    
+    % Determine which satellites need to be fetched
+    if cacheValid
+        missingIDs = [];
+        for i = 1:nSats
+            fieldName = sprintf('n%d', noradIDs(i));
+            if ~isfield(cachedTLEs, fieldName)
+                missingIDs(end+1) = noradIDs(i);
+            end
+        end
+        tleData = cachedTLEs;
+    else
+        missingIDs = noradIDs;
+    end
+    
+    % Fetch missing TLEs from CelesTrak
+    if ~isempty(missingIDs)
+        options = weboptions('Timeout', 30);
+        
+        for i = 1:length(missingIDs)
+            noradID = missingIDs(i);
+            url = sprintf('https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=TLE', noradID);
+            fprintf('Fetching TLE for NORAD ID %d from CelesTrak API\n', noradID);
+            
+            try
+                tleText = webread(url, options);
+                lines = strsplit(tleText, '\n');
+                
+                if length(lines) >= 3
+                    line0 = strtrim(lines{1});
+                    line1 = strtrim(lines{2});
+                    line2 = strtrim(lines{3});
+                    
+                    if length(line1) >= 69 && line1(1) == '1' && ...
+                       length(line2) >= 69 && line2(1) == '2'
+                        
+                        inc = str2double(line2(9:16));
+                        raan = str2double(line2(18:25));
+                        eccStr = ['0.' line2(27:33)];
+                        ecc = str2double(eccStr);
+                        aop = str2double(line2(35:42));
+                        ma = str2double(line2(44:51));
+                        n = str2double(line2(53:63));
+                        
+                        mu = 3.986004418e14;
+                        n_rad_s = n * 2 * pi / 86400;
+                        a = (mu / n_rad_s^2)^(1/3);
+                        
+                        fieldName = sprintf('n%d', noradID);
+                        tleData.(fieldName).a = a;
+                        tleData.(fieldName).e = ecc;
+                        tleData.(fieldName).i = inc;
+                        tleData.(fieldName).raan = raan;
+                        tleData.(fieldName).aop = aop;
+                        tleData.(fieldName).ma = ma;
+                        tleData.(fieldName).name = line0;
+                        tleData.(fieldName).line1 = line1;
+                        tleData.(fieldName).line2 = line2;
+                    end
+                end
+            catch
+                % Silent fail for batch mode
+            end
+            
+            if i < length(missingIDs)
+                pause(0.2);
+            end
+        end
+        
+        % Save updated cache with appropriate timestamp
+        if cacheValid && ~isempty(originalCacheTimestamp)
+            % Cache was valid, just adding missing satellites - keep original timestamp
+            saveTLECacheWithTimestamp(cacheFile, tleData, originalCacheTimestamp);
+        else
+            % Cache was expired or didn't exist - use new timestamp
+            saveTLECacheWithTimestamp(cacheFile, tleData, datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+        end
+    end
+end
+
+function cachedTLEs = loadTLECache(cacheFile)
+    cachedTLEs = struct();
+    
+    fid = fopen(cacheFile, 'r');
+    if fid == -1
+        return;
+    end
+    
+    fgetl(fid);  % Skip date line
+    
+    while ~feof(fid)
+        line0 = fgetl(fid);
+        if ~ischar(line0) || isempty(strtrim(line0)) || startsWith(line0, '---')
+            continue;
+        end
+        
+        line1 = fgetl(fid);
+        line2 = fgetl(fid);
+        
+        if ~ischar(line1) || ~ischar(line2)
+            break;
+        end
+        
+        line0 = strtrim(line0);
+        line1 = strtrim(line1);
+        line2 = strtrim(line2);
+        
+        if length(line1) >= 69 && line1(1) == '1' && ...
+           length(line2) >= 69 && line2(1) == '2'
+            
+            noradID = str2double(line1(3:7));
+            
+            inc = str2double(line2(9:16));
+            raan = str2double(line2(18:25));
+            eccStr = ['0.' line2(27:33)];
+            ecc = str2double(eccStr);
+            aop = str2double(line2(35:42));
+            ma = str2double(line2(44:51));
+            n = str2double(line2(53:63));
+            
+            mu = 3.986004418e14;
+            n_rad_s = n * 2 * pi / 86400;
+            a = (mu / n_rad_s^2)^(1/3);
+            
+            fieldName = sprintf('n%d', noradID);
+            cachedTLEs.(fieldName).a = a;
+            cachedTLEs.(fieldName).e = ecc;
+            cachedTLEs.(fieldName).i = inc;
+            cachedTLEs.(fieldName).raan = raan;
+            cachedTLEs.(fieldName).aop = aop;
+            cachedTLEs.(fieldName).ma = ma;
+            cachedTLEs.(fieldName).name = line0;
+            cachedTLEs.(fieldName).line1 = line1;
+            cachedTLEs.(fieldName).line2 = line2;
+        end
+    end
+    
+    fclose(fid);
+end
+
+function saveTLECacheWithTimestamp(cacheFile, tleData, timestamp)
+    % Save TLE cache with a specific timestamp
+    % This allows preserving the original timestamp when just adding missing satellites
+    
+    fid = fopen(cacheFile, 'w');
+    if fid == -1
+        return;
+    end
+    
+    fprintf(fid, 'CACHE_DATE: %s\n', timestamp);
+    fprintf(fid, '-----------------------------------------------------------\n');
+    
+    fields = fieldnames(tleData);
+    for i = 1:length(fields)
+        tle = tleData.(fields{i});
+        if isfield(tle, 'line1') && isfield(tle, 'line2')
+            fprintf(fid, '%s\n', tle.name);
+            fprintf(fid, '%s\n', tle.line1);
+            fprintf(fid, '%s\n', tle.line2);
+        end
+    end
+    
+    fclose(fid);
+end
+
+function col = findColumn(colNames, possibleNames)
+    col = [];
+    for i = 1:length(possibleNames)
+        idx = find(strcmpi(colNames, possibleNames{i}), 1);
+        if ~isempty(idx)
+            col = idx;
+            return;
+        end
+    end
+end
+
+function val = getNumericValue(data, row, col)
+    if isempty(col)
+        val = NaN;
+        return;
+    end
+    
+    rawVal = data{row, col};
+    
+    if iscell(rawVal)
+        rawVal = rawVal{1};
+    end
+    
+    if isnumeric(rawVal)
+        val = rawVal;
+    elseif ischar(rawVal) || isstring(rawVal)
+        rawVal = strtrim(char(rawVal));
+        rawVal = strrep(rawVal, ',', '');
+        rawVal = strrep(rawVal, ' ', '');
+        if isempty(rawVal) || strcmp(rawVal, '-') || strcmp(rawVal, '*')
+            val = NaN;
+        else
+            val = str2double(rawVal);
+        end
+    else
+        val = NaN;
+    end
+end
+
+function planes = groupIntoPlanes(satellites, raanTolerance)
+    nSats = length(satellites);
+    raans = [satellites.raan];
+    
+    [~, sortIdx] = sort(raans);
+    
+    planes = struct('raan', {}, 'inc', {}, 'satellites', {});
+    assigned = false(1, nSats);
+    
+    for i = 1:nSats
+        idx = sortIdx(i);
+        if assigned(idx)
+            continue;
+        end
+        
+        planeIdx = length(planes) + 1;
+        planes(planeIdx).raan = satellites(idx).raan;
+        planes(planeIdx).inc = satellites(idx).i;
+        planes(planeIdx).satellites = satellites(idx);
+        assigned(idx) = true;
+        
+        for j = i+1:nSats
+            jdx = sortIdx(j);
+            if assigned(jdx)
+                continue;
+            end
+            
+            raanDiff = abs(satellites(jdx).raan - planes(planeIdx).raan);
+            raanDiff = min(raanDiff, 360 - raanDiff);
+            
+            incDiff = abs(satellites(jdx).i - planes(planeIdx).inc);
+            
+            if raanDiff <= raanTolerance && incDiff <= 2.0
+                planes(planeIdx).satellites(end+1) = satellites(jdx);
+                assigned(jdx) = true;
+            end
+        end
+        
+        planeRaans = [planes(planeIdx).satellites.raan];
+        planeIncs = [planes(planeIdx).satellites.i];
+        planes(planeIdx).raan = mean(planeRaans);
+        planes(planeIdx).inc = mean(planeIncs);
+    end
+end
+
+%% ===================== TSP SOLVER FOR PLANE ORDERING =====================
+
+function [bestOrder, bestCost] = solvePlaneTSP(planes)
+    % Solve the Traveling Salesman Problem for optimal plane visit order
+    % Uses Held-Karp dynamic programming algorithm for exact solution (small n)
+    % Falls back to optimized greedy with 2-opt improvement for larger n
+    %
+    % This is an "open TSP" - we don't need to return to the starting plane
+    % We also try all possible starting planes to find the global optimum
+    
+    nPlanes = length(planes);
+    
+    if nPlanes <= 1
+        bestOrder = 1:nPlanes;
+        bestCost = 0;
+        return;
+    end
+    
+    if nPlanes == 2
+        bestOrder = [1, 2];
+        bestCost = calculatePlaneTransitionCost(planes(1), planes(2));
+        return;
+    end
+    
+    % Build cost matrix
+    costMatrix = buildCostMatrix(planes);
+    
+    % Choose algorithm based on problem size
+    % Held-Karp is O(n^2 * 2^n), so limit to ~15 planes
+    if nPlanes <= 15
+        [bestOrder, bestCost] = heldKarpTSP(costMatrix);
+    else
+        % For larger problems, use greedy + 2-opt
+        [bestOrder, bestCost] = greedyTwoOptTSP(costMatrix);
+    end
+end
+
+function costMatrix = buildCostMatrix(planes)
+    % Build symmetric cost matrix for plane transitions
+    % Cost is based on RAAN difference and inclination difference
+    
+    nPlanes = length(planes);
+    costMatrix = zeros(nPlanes);
+    
+    for i = 1:nPlanes
+        for j = i+1:nPlanes
+            cost = calculatePlaneTransitionCost(planes(i), planes(j));
+            costMatrix(i, j) = cost;
+            costMatrix(j, i) = cost;
+        end
+    end
+end
+
+function cost = calculatePlaneTransitionCost(plane1, plane2)
+    % Calculate cost of transitioning between two planes
+    % Uses angular distance considering RAAN wraps around at 360
+    
+    raanDiff = abs(plane2.raan - plane1.raan);
+    raanDiff = min(raanDiff, 360 - raanDiff);  % Handle wraparound
+    
+    incDiff = abs(plane2.inc - plane1.inc);
+    
+    % Weight inclination changes more heavily (they're more expensive in delta-V)
+    cost = raanDiff + 3 * incDiff;
+end
+
+function [bestOrder, bestCost] = heldKarpTSP(costMatrix)
+    % Held-Karp algorithm for exact TSP solution
+    % Modified for open TSP (no return to start) with free starting point
+    %
+    % Time complexity: O(n^2 * 2^n)
+    % Space complexity: O(n * 2^n)
+    
+    n = size(costMatrix, 1);
+    
+    % dp(S, i) = minimum cost to visit all nodes in set S, ending at node i
+    % S is represented as a bitmask
+    numSubsets = 2^n;
+    
+    % Initialize with infinity
+    dp = inf(numSubsets, n);
+    parent = zeros(numSubsets, n);  % For path reconstruction
+    
+    % Base case: starting at each single node costs 0
+    for i = 1:n
+        mask = bitshift(1, i-1);  % Set with only node i
+        dp(mask + 1, i) = 0;  % +1 for 1-indexed MATLAB
+    end
+    
+    % Fill DP table
+    for mask = 1:numSubsets-1
+        for last = 1:n
+            % Check if 'last' is in the current set
+            if bitand(mask, bitshift(1, last-1)) == 0
+                continue;
+            end
+            
+            if isinf(dp(mask + 1, last))
+                continue;
+            end
+            
+            % Try adding each node not in the set
+            for next = 1:n
+                if bitand(mask, bitshift(1, next-1)) ~= 0
+                    continue;  % Already visited
+                end
+                
+                newMask = bitor(mask, bitshift(1, next-1));
+                newCost = dp(mask + 1, last) + costMatrix(last, next);
+                
+                if newCost < dp(newMask + 1, next)
+                    dp(newMask + 1, next) = newCost;
+                    parent(newMask + 1, next) = last;
+                end
+            end
+        end
+    end
+    
+    % Find best ending node (open TSP - don't need to return)
+    fullMask = numSubsets - 1;  % All nodes visited
+    bestCost = inf;
+    bestEnd = 1;
+    
+    for i = 1:n
+        if dp(fullMask + 1, i) < bestCost
+            bestCost = dp(fullMask + 1, i);
+            bestEnd = i;
+        end
+    end
+    
+    % Reconstruct path
+    bestOrder = zeros(1, n);
+    mask = fullMask;
+    current = bestEnd;
+    
+    for pos = n:-1:1
+        bestOrder(pos) = current;
+        prev = parent(mask + 1, current);
+        mask = bitxor(mask, bitshift(1, current-1));
+        current = prev;
+    end
+end
+
+function [bestOrder, bestCost] = greedyTwoOptTSP(costMatrix)
+    % Greedy nearest neighbor followed by 2-opt improvement
+    % Good heuristic for larger problems where exact solution is too slow
+    
+    n = size(costMatrix, 1);
+    
+    bestOrder = [];
+    bestCost = inf;
+    
+    % Try starting from each node
+    for startNode = 1:n
+        % Greedy nearest neighbor construction
+        order = greedyConstruct(costMatrix, startNode);
+        cost = calculateTourCost(costMatrix, order);
+        
+        % 2-opt improvement
+        [order, cost] = twoOptImprove(costMatrix, order, cost);
+        
+        if cost < bestCost
+            bestCost = cost;
+            bestOrder = order;
+        end
+    end
+end
+
+function order = greedyConstruct(costMatrix, startNode)
+    % Construct tour using nearest neighbor heuristic
+    
+    n = size(costMatrix, 1);
+    visited = false(1, n);
+    order = zeros(1, n);
+    
+    current = startNode;
+    order(1) = current;
+    visited(current) = true;
+    
+    for i = 2:n
+        % Find nearest unvisited node
+        minCost = inf;
+        nextNode = -1;
+        
+        for j = 1:n
+            if ~visited(j) && costMatrix(current, j) < minCost
+                minCost = costMatrix(current, j);
+                nextNode = j;
+            end
+        end
+        
+        order(i) = nextNode;
+        visited(nextNode) = true;
+        current = nextNode;
+    end
+end
+
+function cost = calculateTourCost(costMatrix, order)
+    % Calculate total cost of a tour (open TSP - no return)
+    
+    cost = 0;
+    for i = 1:length(order)-1
+        cost = cost + costMatrix(order(i), order(i+1));
+    end
+end
+
+function [bestOrder, bestCost] = twoOptImprove(costMatrix, order, currentCost)
+    % 2-opt local search improvement
+    % Repeatedly reverse segments if it improves the tour
+    
+    n = length(order);
+    improved = true;
+    bestOrder = order;
+    bestCost = currentCost;
+    
+    while improved
+        improved = false;
+        
+        for i = 1:n-2
+            for j = i+2:n
+                % Calculate cost change from reversing segment [i+1, j]
+                % For open TSP, we need to handle edge cases
+                
+                if i == 1
+                    % Reversing from start
+                    oldCost = costMatrix(order(i), order(i+1));
+                    if j < n
+                        oldCost = oldCost + costMatrix(order(j), order(j+1));
+                    end
+                    
+                    newCost = costMatrix(order(i), order(j));
+                    if j < n
+                        newCost = newCost + costMatrix(order(i+1), order(j+1));
+                    end
+                else
+                    oldCost = costMatrix(order(i), order(i+1));
+                    if j < n
+                        oldCost = oldCost + costMatrix(order(j), order(j+1));
+                    end
+                    
+                    newCost = costMatrix(order(i), order(j));
+                    if j < n
+                        newCost = newCost + costMatrix(order(i+1), order(j+1));
+                    end
+                end
+                
+                if newCost < oldCost - 1e-10  % Small tolerance for floating point
+                    % Reverse segment
+                    bestOrder = [order(1:i), fliplr(order(i+1:j)), order(j+1:end)];
+                    order = bestOrder;
+                    bestCost = bestCost - oldCost + newCost;
+                    improved = true;
+                end
+            end
+        end
+    end
+end
+
+%% ===================== DELTA-V CALCULATION FUNCTIONS =====================
+
+function [totalDV, visitOrder, details] = calculatePhasingDV(satellites, timePerManeuver, mu)
+    % Calculate delta-V for visiting all satellites within a "plane"
+    % Accounts for actual RAAN, inclination, altitude, and phase differences
+    
+    nSats = length(satellites);
+    
+    if nSats <= 1
+        totalDV = 0;
+        visitOrder = 1;
+        details = struct('dv', 0, 'from', '', 'to', '');
+        return;
+    end
+    
+    mas = [satellites.ma];
+    [~, visitOrder] = sort(mas);
+    
+    totalDV = 0;
+    details = struct('dv', {}, 'from', {}, 'to', {}, 'phaseAngle', {});
+    
+    for i = 1:nSats-1
+        currentIdx = visitOrder(i);
+        nextIdx = visitOrder(i+1);
+        
+        currentSat = satellites(currentIdx);
+        nextSat = satellites(nextIdx);
+        
+        % Calculate full transfer delta-V
+        dv = calculateFullTransferDV(currentSat, nextSat, timePerManeuver, mu);
+        
+        totalDV = totalDV + dv;
+        
+        details(i).dv = dv;
+        details(i).from = currentSat.name;
+        details(i).to = nextSat.name;
+        details(i).phaseAngle = abs(nextSat.ma - currentSat.ma);
+    end
+end
+
+function totalDV = calculateFullTransferDV(sat1, sat2, transferTime, mu)
+    % Calculate delta-V accounting for all orbital element differences
+    
+    % Plane change (RAAN and inclination)
+    i1 = deg2rad(sat1.i);
+    i2 = deg2rad(sat2.i);
+    raan1 = deg2rad(sat1.raan);
+    raan2 = deg2rad(sat2.raan);
+    
+    dRAAN = raan2 - raan1;
+    cosTheta = cos(i1)*cos(i2) + sin(i1)*sin(i2)*cos(dRAAN);
+    theta = acos(max(-1, min(1, cosTheta)));
+    
+    a_avg = (sat1.a + sat2.a) / 2;
+    v_avg = sqrt(mu / a_avg);
+    
+    if theta > 0.001
+        dv_plane = 2 * v_avg * sin(theta / 2);
+    else
+        dv_plane = 0;
+    end
+    
+    % Altitude change
+    if abs(sat1.a - sat2.a) > 100
+        dv_altitude = calculateHohmannDV(sat1.a, sat2.a, mu);
+    else
+        dv_altitude = 0;
+    end
+    
+    % Phasing
+    phaseAngle = sat2.ma - sat1.ma;
+    if phaseAngle < 0
+        phaseAngle = phaseAngle + 360;
+    end
+    if phaseAngle > 180
+        phaseAngle = 360 - phaseAngle;
+    end
+    phaseAngleRad = deg2rad(phaseAngle);
+    
+    if phaseAngleRad > 0.01
+        dv_phase = calculatePhasingManeuverDV(a_avg, phaseAngleRad, transferTime, mu);
+    else
+        dv_phase = 5;
+    end
+    
+    % Combine
+    if theta < deg2rad(5)
+        totalDV = sqrt(dv_phase^2 + dv_plane^2) + dv_altitude;
+    else
+        totalDV = dv_phase + dv_plane + dv_altitude;
+    end
+    
+    totalDV = max(totalDV, 5);
+end
+
+function dv = calculatePhasingManeuverDV(a, phaseAngle, transferTime, mu)
+    T = 2 * pi * sqrt(a^3 / mu);
+    v_circ = sqrt(mu / a);
+    nOrbits = transferTime / T;
+    
+    if nOrbits < 0.5
+        nOrbits = 0.5;
+    end
+    
+    if phaseAngle <= pi
+        targetOrbits = nOrbits + phaseAngle / (2*pi);
+        T_transfer = transferTime / targetOrbits;
+    else
+        phaseAngle = 2*pi - phaseAngle;
+        targetOrbits = nOrbits + phaseAngle / (2*pi);
+        T_transfer = transferTime / targetOrbits;
+    end
+    
+    a_transfer = (mu * (T_transfer / (2*pi))^2)^(1/3);
+    
+    r_min = 2 * a_transfer - a;
+    if r_min < 6478e3
+        nOrbits = nOrbits * 2;
+        targetOrbits = nOrbits + phaseAngle / (2*pi);
+        T_transfer = (transferTime * 2) / targetOrbits;
+        a_transfer = (mu * (T_transfer / (2*pi))^2)^(1/3);
+    end
+    
+    if a_transfer < a
+        r_a = a;
+        v_transfer_apo = sqrt(mu * (2/r_a - 1/a_transfer));
+        dv1 = abs(v_circ - v_transfer_apo);
+    else
+        r_p = a;
+        v_transfer_peri = sqrt(mu * (2/r_p - 1/a_transfer));
+        dv1 = abs(v_transfer_peri - v_circ);
+    end
+    
+    dv = 2 * dv1;
+    dv = dv + 5;
+end
+
+function dv = calculatePlaneChangeDV(sat1, sat2, mu)
+    i1 = deg2rad(sat1.i);
+    i2 = deg2rad(sat2.i);
+    raan1 = deg2rad(sat1.raan);
+    raan2 = deg2rad(sat2.raan);
+    
+    dRAAN = raan2 - raan1;
+    
+    cosTheta = cos(i1)*cos(i2) + sin(i1)*sin(i2)*cos(dRAAN);
+    theta = acos(max(-1, min(1, cosTheta)));
+    
+    a_avg = (sat1.a + sat2.a) / 2;
+    v = sqrt(mu / a_avg);
+    
+    dv = 2 * v * sin(theta / 2);
+    
+    if abs(sat1.a - sat2.a) > 1e3
+        dv_altitude = calculateHohmannDV(sat1.a, sat2.a, mu);
+        dv = sqrt(dv^2 + dv_altitude^2);
+    end
+end
+
+function dv = calculateHohmannDV(a1, a2, mu)
+    r1 = a1;
+    r2 = a2;
+    a_t = (r1 + r2) / 2;
+    
+    v1 = sqrt(mu / r1);
+    v2 = sqrt(mu / r2);
+    
+    v_t1 = sqrt(mu * (2/r1 - 1/a_t));
+    v_t2 = sqrt(mu * (2/r2 - 1/a_t));
+    
+    dv1 = abs(v_t1 - v1);
+    dv2 = abs(v2 - v_t2);
+    
+    dv = dv1 + dv2;
+end
