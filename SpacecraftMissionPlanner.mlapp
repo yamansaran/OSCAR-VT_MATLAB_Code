@@ -1,0 +1,442 @@
+function SpacecraftMissionPlanner_Standalone()
+% Spacecraft Mission Planner - Standalone Version
+% Run this function directly in MATLAB
+
+% Constants
+g0 = 9.80665; % Standard gravity (m/s^2)
+R_earth = 6378.137; % Earth radius (km)
+mu_earth = 398600.4418; % Earth gravitational parameter (km^3/s^2)
+
+% Create figure
+fig = uifigure('Name', 'Spacecraft Mission Planner', 'Position', [100 100 1200 750]);
+
+% Create grid layout
+mainGrid = uigridlayout(fig, [1 2]);
+mainGrid.ColumnWidth = {400, '1x'};
+
+% Left panel for inputs
+leftPanel = uipanel(mainGrid, 'Title', 'Inputs', 'Scrollable', 'on');
+leftPanel.Layout.Row = 1;
+leftPanel.Layout.Column = 1;
+
+% Right panel for results
+rightPanel = uipanel(mainGrid, 'Title', 'Results');
+rightPanel.Layout.Row = 1;
+rightPanel.Layout.Column = 2;
+
+% Create input controls in left panel
+yPos = 630;
+xLabel = 10;
+xField = 220;
+
+% Spacecraft Parameters Header
+uilabel(leftPanel, 'Text', 'Spacecraft Parameters', ...
+    'Position', [xLabel, yPos, 200, 22], 'FontWeight', 'bold', 'FontSize', 14);
+yPos = yPos - 30;
+
+% Total Mass
+uilabel(leftPanel, 'Text', 'Total Mass (kg)', 'Position', [xLabel, yPos, 200, 22]);
+totalMassField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 1000);
+yPos = yPos - 30;
+
+% Fuel Mass
+uilabel(leftPanel, 'Text', 'Fuel Mass (kg)', 'Position', [xLabel, yPos, 200, 22]);
+fuelMassField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 300);
+yPos = yPos - 30;
+
+% Isp
+uilabel(leftPanel, 'Text', 'Specific Impulse (s)', 'Position', [xLabel, yPos, 200, 22]);
+ispField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 300);
+yPos = yPos - 30;
+
+% Orbit Altitude
+uilabel(leftPanel, 'Text', 'Orbit Altitude (km)', 'Position', [xLabel, yPos, 200, 22]);
+altitudeField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 400);
+yPos = yPos - 30;
+
+% Inclination
+uilabel(leftPanel, 'Text', 'Inclination (deg)', 'Position', [xLabel, yPos, 200, 22]);
+inclinationField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 51.6);
+yPos = yPos - 30;
+
+% Argument of Perigee
+uilabel(leftPanel, 'Text', 'Argument of Perigee (deg)', 'Position', [xLabel, yPos, 200, 22]);
+aopField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 0);
+yPos = yPos - 40;
+
+% Mission Requirements Header
+uilabel(leftPanel, 'Text', 'Mission Requirements', ...
+    'Position', [xLabel, yPos, 200, 22], 'FontWeight', 'bold', 'FontSize', 14);
+yPos = yPos - 30;
+
+% Parameter to Calculate
+uilabel(leftPanel, 'Text', 'Parameter to Calculate', 'Position', [xLabel, yPos, 200, 22]);
+yPos = yPos - 30;
+paramDropdown = uidropdown(leftPanel, ...
+    'Items', {'Number of Maneuvers', 'Altitude Change', 'Inclination Change', 'Argument of Perigee Change', 'Phasing Change'}, ...
+    'Position', [xLabel, yPos, 360, 22], 'Value', 'Number of Maneuvers');
+yPos = yPos - 30;
+
+% Number of Maneuvers
+uilabel(leftPanel, 'Text', 'Number of Maneuvers', 'Position', [xLabel, yPos, 200, 22]);
+numManeuversField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 5);
+yPos = yPos - 30;
+
+% Altitude Change
+uilabel(leftPanel, 'Text', 'Altitude Change (km/maneuver)', 'Position', [xLabel, yPos, 200, 22]);
+altChangeField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 10);
+yPos = yPos - 30;
+
+% Inclination Change
+uilabel(leftPanel, 'Text', 'Inclination Change (deg/maneuver)', 'Position', [xLabel, yPos, 210, 22]);
+incChangeField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 1);
+yPos = yPos - 30;
+
+% AOP Change
+uilabel(leftPanel, 'Text', 'AOP Change (deg/maneuver)', 'Position', [xLabel, yPos, 200, 22]);
+aopChangeField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 0);
+yPos = yPos - 30;
+
+% Phasing Change
+uilabel(leftPanel, 'Text', 'Phasing Change (deg/maneuver)', 'Position', [xLabel, yPos, 200, 22]);
+phaseChangeField = uieditfield(leftPanel, 'numeric', 'Position', [xField, yPos, 150, 22], 'Value', 0);
+yPos = yPos - 40;
+
+% Calculate Button
+calculateBtn = uibutton(leftPanel, 'push', 'Text', 'Calculate Mission', ...
+    'Position', [xLabel, yPos, 360, 40], 'FontSize', 16, 'FontWeight', 'bold');
+
+% Results text area
+resultsArea = uitextarea(rightPanel, 'Position', [10, 10, 760, 680], ...
+    'Value', {'Click "Calculate Mission" to see results...'}, ...
+    'Editable', 'off');
+
+% Button callback
+calculateBtn.ButtonPushedFcn = @(src, event) calculateMission();
+
+    function calculateMission()
+        try
+            % Get input values
+            m_total = totalMassField.Value;
+            m_fuel = fuelMassField.Value;
+            Isp = ispField.Value;
+            h_orbit = altitudeField.Value;
+            inc_current = inclinationField.Value;
+            aop_current = aopField.Value;
+            
+            % Validate inputs
+            if m_fuel >= m_total
+                resultsArea.Value = {'Error: Fuel mass must be less than total mass!'};
+                return;
+            end
+            
+            if Isp <= 0 || m_total <= 0 || m_fuel <= 0
+                resultsArea.Value = {'Error: Mass and Isp must be positive values!'};
+                return;
+            end
+            
+            % Calculate total available delta-V
+            mass_ratio = m_total / (m_total - m_fuel);
+            deltaV_total = Isp * g0 * log(mass_ratio) / 1000; % Convert to km/s
+            
+            % Calculate deorbit delta-V (from current orbit to 100 km)
+            r_current = R_earth + h_orbit;
+            v_current = sqrt(mu_earth / r_current);
+            r_deorbit = R_earth + 100;
+            
+            % Hohmann transfer to deorbit altitude
+            a_transfer = (r_current + r_deorbit) / 2;
+            v_transfer_at_current = sqrt(mu_earth * (2/r_current - 1/a_transfer));
+            deltaV_deorbit = abs(v_current - v_transfer_at_current);
+            
+            % Available delta-V for maneuvers
+            deltaV_available = deltaV_total - deltaV_deorbit;
+            
+            if deltaV_available <= 0
+                resultsArea.Value = {sprintf('Error: Insufficient delta-V!'), ...
+                    sprintf('Total delta-V: %.4f km/s', deltaV_total), ...
+                    sprintf('Deorbit delta-V: %.4f km/s', deltaV_deorbit)};
+                return;
+            end
+            
+            % Get requirements
+            param_to_calc = paramDropdown.Value;
+            n_maneuvers = numManeuversField.Value;
+            dh_per = altChangeField.Value;
+            dinc_per = incChangeField.Value;
+            daop_per = aopChangeField.Value;
+            dphase_per = phaseChangeField.Value;
+            
+            % Calculate based on selected parameter
+            switch param_to_calc
+                case 'Number of Maneuvers'
+                    [n_maneuvers, deltaV_per_maneuver, results_text] = calculateNumberOfManeuvers(...
+                        deltaV_available, h_orbit, v_current, dh_per, dinc_per, daop_per, dphase_per);
+                    
+                case 'Altitude Change'
+                    [dh_per, deltaV_per_maneuver, results_text] = calculateAltitudeChange(...
+                        deltaV_available, n_maneuvers, h_orbit, v_current, dinc_per, daop_per, dphase_per);
+                    
+                case 'Inclination Change'
+                    [dinc_per, deltaV_per_maneuver, results_text] = calculateInclinationChange(...
+                        deltaV_available, n_maneuvers, h_orbit, v_current, dh_per, daop_per, dphase_per);
+                    
+                case 'Argument of Perigee Change'
+                    [daop_per, deltaV_per_maneuver, results_text] = calculateAOPChange(...
+                        deltaV_available, n_maneuvers, h_orbit, v_current, dh_per, dinc_per, dphase_per);
+                    
+                case 'Phasing Change'
+                    [dphase_per, deltaV_per_maneuver, results_text] = calculatePhasingChange(...
+                        deltaV_available, n_maneuvers, h_orbit, v_current, dh_per, dinc_per, daop_per);
+            end
+            
+            % Display results
+            output = {};
+            output{end+1} = '=== MISSION SUMMARY ===';
+            output{end+1} = '';
+            output{end+1} = 'SPACECRAFT PARAMETERS:';
+            output{end+1} = sprintf('Total Mass: %.2f kg', m_total);
+            output{end+1} = sprintf('Fuel Mass: %.2f kg', m_fuel);
+            output{end+1} = sprintf('Specific Impulse: %.2f s', Isp);
+            output{end+1} = sprintf('Mass Ratio: %.4f', mass_ratio);
+            output{end+1} = '';
+            output{end+1} = 'INITIAL ORBIT:';
+            output{end+1} = sprintf('Altitude: %.2f km', h_orbit);
+            output{end+1} = sprintf('Inclination: %.2f deg', inc_current);
+            output{end+1} = sprintf('Argument of Perigee: %.2f deg', aop_current);
+            output{end+1} = '';
+            output{end+1} = 'DELTA-V BUDGET:';
+            output{end+1} = sprintf('Total Available: %.4f km/s', deltaV_total);
+            output{end+1} = sprintf('Deorbit (to 100 km): %.4f km/s', deltaV_deorbit);
+            output{end+1} = sprintf('Available for Maneuvers: %.4f km/s', deltaV_available);
+            output{end+1} = '';
+            output{end+1} = 'MISSION PROFILE:';
+            output{end+1} = sprintf('Number of Maneuvers: %d', round(n_maneuvers));
+            output{end+1} = sprintf('Altitude Change per Maneuver: %.4f km', dh_per);
+            output{end+1} = sprintf('Inclination Change per Maneuver: %.4f deg', dinc_per);
+            output{end+1} = sprintf('AOP Change per Maneuver: %.4f deg', daop_per);
+            output{end+1} = sprintf('Phasing Change per Maneuver: %.4f deg', dphase_per);
+            output{end+1} = '';
+            output{end+1} = 'MANEUVER BREAKDOWN:';
+            
+            % Add results text
+            results_lines = strsplit(results_text, '\n');
+            output = [output, results_lines];
+            
+            resultsArea.Value = output;
+            
+        catch ME
+            resultsArea.Value = {sprintf('Error: %s', ME.message)};
+        end
+    end
+
+    function [n_man, deltaV_per, results_text] = calculateNumberOfManeuvers(deltaV_avail, h, v, dh, dinc, daop, dphase)
+        deltaV_single = estimateManeuverDeltaV(h, v, dh, dinc, daop, dphase);
+        n_man = floor(deltaV_avail / deltaV_single);
+        
+        if n_man < 1
+            error('Insufficient delta-V for even one maneuver with these requirements!');
+        end
+        
+        deltaV_per = zeros(n_man, 1);
+        results_text = '';
+        
+        for i = 1:n_man
+            h_current = h + (i-1) * dh;
+            r_current = R_earth + h_current;
+            v_current = sqrt(mu_earth / r_current);
+            deltaV_per(i) = estimateManeuverDeltaV(h_current, v_current, dh, dinc, daop, dphase);
+            results_text = [results_text sprintf('Maneuver %d: %.4f km/s\n', i, deltaV_per(i))];
+        end
+        
+        results_text = [results_text sprintf('\nTotal delta-V used: %.4f km/s\n', sum(deltaV_per))];
+        results_text = [results_text sprintf('Remaining delta-V: %.4f km/s', deltaV_avail - sum(deltaV_per))];
+    end
+
+    function [dh_result, deltaV_per, results_text] = calculateAltitudeChange(deltaV_avail, n_man, h, v, dinc, daop, dphase)
+        dh_test = 0;
+        dh_step = 10;
+        
+        for iter = 1:100
+            total_dv = 0;
+            for i = 1:n_man
+                h_current = h + (i-1) * dh_test;
+                r_current = R_earth + h_current;
+                v_current = sqrt(mu_earth / r_current);
+                total_dv = total_dv + estimateManeuverDeltaV(h_current, v_current, dh_test, dinc, daop, dphase);
+            end
+            
+            if abs(total_dv - deltaV_avail) < 0.001
+                break;
+            end
+            
+            if total_dv < deltaV_avail
+                dh_test = dh_test + dh_step;
+            else
+                dh_test = dh_test - dh_step;
+                dh_step = dh_step / 2;
+            end
+        end
+        
+        dh_result = dh_test;
+        deltaV_per = zeros(n_man, 1);
+        results_text = '';
+        
+        for i = 1:n_man
+            h_current = h + (i-1) * dh_result;
+            r_current = R_earth + h_current;
+            v_current = sqrt(mu_earth / r_current);
+            deltaV_per(i) = estimateManeuverDeltaV(h_current, v_current, dh_result, dinc, daop, dphase);
+            results_text = [results_text sprintf('Maneuver %d: %.4f km/s (alt: %.2f km)\n', i, deltaV_per(i), h_current)];
+        end
+        
+        results_text = [results_text sprintf('\nTotal delta-V used: %.4f km/s', sum(deltaV_per))];
+    end
+
+    function [dinc_result, deltaV_per, results_text] = calculateInclinationChange(deltaV_avail, n_man, h, v, dh, daop, dphase)
+        dinc_test = 0;
+        dinc_step = 1;
+        
+        for iter = 1:100
+            total_dv = 0;
+            for i = 1:n_man
+                h_current = h + (i-1) * dh;
+                r_current = R_earth + h_current;
+                v_current = sqrt(mu_earth / r_current);
+                total_dv = total_dv + estimateManeuverDeltaV(h_current, v_current, dh, dinc_test, daop, dphase);
+            end
+            
+            if abs(total_dv - deltaV_avail) < 0.001
+                break;
+            end
+            
+            if total_dv < deltaV_avail
+                dinc_test = dinc_test + dinc_step;
+            else
+                dinc_test = dinc_test - dinc_step;
+                dinc_step = dinc_step / 2;
+            end
+        end
+        
+        dinc_result = dinc_test;
+        deltaV_per = zeros(n_man, 1);
+        results_text = '';
+        
+        for i = 1:n_man
+            h_current = h + (i-1) * dh;
+            r_current = R_earth + h_current;
+            v_current = sqrt(mu_earth / r_current);
+            deltaV_per(i) = estimateManeuverDeltaV(h_current, v_current, dh, dinc_result, daop, dphase);
+            results_text = [results_text sprintf('Maneuver %d: %.4f km/s\n', i, deltaV_per(i))];
+        end
+        
+        results_text = [results_text sprintf('\nTotal delta-V used: %.4f km/s', sum(deltaV_per))];
+    end
+
+    function [daop_result, deltaV_per, results_text] = calculateAOPChange(deltaV_avail, n_man, h, v, dh, dinc, dphase)
+        daop_test = 0;
+        daop_step = 1;
+        
+        for iter = 1:100
+            total_dv = 0;
+            for i = 1:n_man
+                h_current = h + (i-1) * dh;
+                r_current = R_earth + h_current;
+                v_current = sqrt(mu_earth / r_current);
+                total_dv = total_dv + estimateManeuverDeltaV(h_current, v_current, dh, dinc, daop_test, dphase);
+            end
+            
+            if abs(total_dv - deltaV_avail) < 0.001
+                break;
+            end
+            
+            if total_dv < deltaV_avail
+                daop_test = daop_test + daop_step;
+            else
+                daop_test = daop_test - daop_step;
+                daop_step = daop_step / 2;
+            end
+        end
+        
+        daop_result = daop_test;
+        deltaV_per = zeros(n_man, 1);
+        results_text = '';
+        
+        for i = 1:n_man
+            h_current = h + (i-1) * dh;
+            r_current = R_earth + h_current;
+            v_current = sqrt(mu_earth / r_current);
+            deltaV_per(i) = estimateManeuverDeltaV(h_current, v_current, dh, dinc, daop_result, dphase);
+            results_text = [results_text sprintf('Maneuver %d: %.4f km/s\n', i, deltaV_per(i))];
+        end
+        
+        results_text = [results_text sprintf('\nTotal delta-V used: %.4f km/s', sum(deltaV_per))];
+    end
+
+    function [dphase_result, deltaV_per, results_text] = calculatePhasingChange(deltaV_avail, n_man, h, v, dh, dinc, daop)
+        dphase_test = 0;
+        dphase_step = 1;
+        
+        for iter = 1:100
+            total_dv = 0;
+            for i = 1:n_man
+                h_current = h + (i-1) * dh;
+                r_current = R_earth + h_current;
+                v_current = sqrt(mu_earth / r_current);
+                total_dv = total_dv + estimateManeuverDeltaV(h_current, v_current, dh, dinc, daop, dphase_test);
+            end
+            
+            if abs(total_dv - deltaV_avail) < 0.001
+                break;
+            end
+            
+            if total_dv < deltaV_avail
+                dphase_test = dphase_test + dphase_step;
+            else
+                dphase_test = dphase_test - dphase_step;
+                dphase_step = dphase_step / 2;
+            end
+        end
+        
+        dphase_result = dphase_test;
+        deltaV_per = zeros(n_man, 1);
+        results_text = '';
+        
+        for i = 1:n_man
+            h_current = h + (i-1) * dh;
+            r_current = R_earth + h_current;
+            v_current = sqrt(mu_earth / r_current);
+            deltaV_per(i) = estimateManeuverDeltaV(h_current, v_current, dh, dinc, daop, dphase_result);
+            results_text = [results_text sprintf('Maneuver %d: %.4f km/s\n', i, deltaV_per(i))];
+        end
+        
+        results_text = [results_text sprintf('\nTotal delta-V used: %.4f km/s', sum(deltaV_per))];
+    end
+
+    function deltaV = estimateManeuverDeltaV(h, v, dh, dinc, daop, dphase)
+        r = R_earth + h;
+        
+        % Altitude change component
+        if dh ~= 0
+            r_new = r + dh;
+            a_transfer = (r + r_new) / 2;
+            v_transfer = sqrt(mu_earth * (2/r - 1/a_transfer));
+            deltaV_altitude = abs(v - v_transfer);
+        else
+            deltaV_altitude = 0;
+        end
+        
+        % Inclination change component
+        deltaV_inclination = 2 * v * sin(deg2rad(dinc) / 2);
+        
+        % Argument of perigee change
+        deltaV_aop = v * deg2rad(daop) * 0.5;
+        
+        % Phasing change
+        deltaV_phasing = v * deg2rad(dphase) / 360;
+        
+        % Combined delta-V (vector sum approximation)
+        deltaV = sqrt(deltaV_altitude^2 + deltaV_inclination^2 + deltaV_aop^2 + deltaV_phasing^2);
+    end
+
+end
