@@ -1,0 +1,61 @@
+#JCAT	Piece	Name	LDate	TLast	TOp	TDate	TF	Program	Plane	Att	Mvr	Class	Category	Result	Control	Discipline	UNState	UNReg	UNPeriod	UNPerigee	UNApogee	UNInc	DispEpoch	DispPeri	DispApo	DispInc	Comment
+S25162	1998-008A	[Globalstar M1]	1998 Feb 14 	2005 May 26	2005 May 26	2007 Oct 29	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/341	  113.0 	    1328	    1400	 52.0 	2007 Oct 31 	    1514	    1516	 52.01 	-
+S25163	1998-008B	[Globalstar M2]	1998 Feb 14 	2005 Aug	2005 Aug?	2005 Aug 27	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/341	  113.0 	    1328	    1400	 52.0 	2005 Aug 29 	    1407	    1412	 52.00 	-
+S25164	1998-008C	[Globalstar M3]	1998 Feb 14 	2005 Jul 15	2001 Nov	2005 Jul 15	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/341	  113.0 	    1328	    1400	 52.0 	2005 Jul 17 	    1807	    1809	 52.00 	-
+S25165	1998-008D	[Globalstar M4]	1998 Feb 14 	2006 Aug	2010 May 15	2010 May 15	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/341	  113.0 	    1328	    1400	 52.0 	2010 May 17 	    1624	    1631	 51.99 	-
+S25306	1998-023A	[Globalstar M6]	1998 Apr 24 	2001 Oct  1	2001 Oct  1	2001 Oct  1	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/344	  113.0 	    1328	    1400	 52.0 	2001 Oct  5 	    1506	    1555	 52.00 	-
+S25307	1998-023B	[Globalstar M8]	1998 Apr 24 	2016 Feb	2016 Feb 19	2016 Mar 25	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/344	  113.0 	    1328	    1400	 52.0 	2016 Mar 27 	    1872	    1874	 52.00 	-
+S25308	1998-023C	[Globalstar M14]	1998 Apr 24 	2006 Aug	2010 Dec 22	2011 Jan  8	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/344	  113.0 	    1328	    1400	 52.0 	2011 Jan 10 	    1771	    1774	 51.99 	-
+S25309	1998-023D	[Globalstar M15]	1998 Apr 24 	2006 Aug	2009 Oct 15	2011 Apr  8	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/344	  113.0 	    1328	    1400	 52.0 	2011 Apr 10 	    1490	    1515	 51.99 	-
+S25621	1999-004A	Globalstar M023	1999 Feb  9 	2004 Feb?	2004 Feb 18	2004 Feb 18	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2004 Apr  3 	    1412	    1421	 52.01 	-
+S25622	1999-004B	Globalstar M040	1999 Feb  9 	2010 Aug?	2009 Aug 27	2009 Aug 27	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2011 Jan  2 	    1415	    1416	 52.00 	-
+S25623	1999-004C	Globalstar M036	1999 Feb  9 	2013 Jan 20	2010 Sep 30	2013 Jan 20	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2011 Jan 11 	    1541	    1544	 52.00 	-
+S25624	1999-004D	Globalstar M038	1999 Feb  9 	2013 May 31	2010 Jul?	2013 May 31	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Aug  8 	    1453	    1454	 52.00 	-
+S25649	1999-012A	Globalstar M022	1999 Mar 15 	2006 Aug	2008 Jan	2010 Jun 18	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Jun 20 	    1668	    1671	 52.00 	-
+S25650	1999-012B	Globalstar M041	1999 Mar 15 	2006 Aug	2010 May 11	2012 Dec  3	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 May 13 	    1535	    1536	 52.01 	-
+S25651	1999-012C	Globalstar M046	1999 Mar 15 	2010 Aug	2010 Oct  8	2012 Sep 12	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2011 Mar 27 	    1593	    1595	 52.00 	-
+S25652	1999-012D	Globalstar M037	1999 Mar 15 	2010 Aug	2011 Aug?	2011 Sep 14	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2011 Sep 16 	    1412	    1414	 52.00 	-
+S25676	1999-019A	Globalstar M045	1999 Apr 15 	2010 Aug	2013 Jul 25	2013 Sep  6	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2013 Sep  8 	    1563	    1563	 52.00 	-
+S25677	1999-019B	Globalstar M019	1999 Apr 15 	2006 Aug	2010 Jun 19	2014 Sep  3	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Aug 21 	    1522	    1524	 51.99 	-
+S25678	1999-019C	Globalstar M044	1999 Apr 15 	2006 Aug	2009 Sep 24	2012 Nov 19	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Jul 10 	    1564	    1564	 52.00 	-
+S25679	1999-019D	Globalstar M042	1999 Apr 15 	2010 Jun	2010 Jun  4	2010 Jun 18	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Jun 20 	    1582	    1584	 52.00 	-
+S25770	1999-031A	Globalstar M025	1999 Jun 10 	2006 Aug	2013 May 30	2013 Sep 20	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2013 Sep 23 	    2046	    2049	 51.99 	-
+S25771	1999-031B	Globalstar M049	1999 Jun 10 	2006 Aug	2009 Nov 24	2010 Jul 16	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Jul 18 	    2099	    2101	 51.99 	-
+S25772	1999-031C	Globalstar M047	1999 Jun 10 	2006 Aug	2013 Dec 12	2014 May 18	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2014 May 20 	    1987	    2014	 51.99 	-
+S25773	1999-031D	Globalstar M052	1999 Jun 10 	2006 Aug	2013 May 30	2013 Sep 20	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2013 Sep 25 	    2083	    2087	 51.99 	-
+S25851	1999-037A	[Globalstar]	1999 Jul 10 	2005 Apr	2005 Apr	2008 Nov 20	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2008 Nov 24 	    2128	    2149	 51.99 	-
+S25852	1999-037B	[Globalstar]	1999 Jul 10 	2010 Aug	2013 Jun 17	2014 Jan 17	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2014 Jan 19 	    2059	    2059	 52.00 	-
+S25853	1999-037C	[Globalstar]	1999 Jul 10 	2010 Aug	2010 Oct 15	2011 Feb  4	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2011 Feb  6 	    1949	    1952	 51.98 	-
+S25854	1999-037D	[Globalstar]	1999 Jul 10 	2010 Aug	2013 Jun 27	2013 Oct  4	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2013 Oct  6 	    1885	    1889	 51.99 	-
+S25872	1999-041A	[Globalstar]	1999 Jul 25 	2010 Aug	2010 Sep 10	2010 Sep 24	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2010 Sep 26 	    1989	    1994	 51.94 	-
+S25873	1999-041B	[Globalstar]	1999 Jul 25 	2017 May	2017 May  5	2017 Jun 19	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2017 Jun 21 	    2126	    2129	 52.00 	-
+S25874	1999-041C	[Globalstar]	1999 Jul 25 	2010 Aug	2011 Feb  3	2011 Sep 12	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2011 Mar  6 	    2033	    2037	 51.96 	-
+S25875	1999-041D	[Globalstar]	1999 Jul 25 	2010 Aug	2015 May 23	2015 Sep  3	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/366	  114.1 	    1413	    1414	 52.0 	2015 Sep  5 	    1413	    1511	 51.96 	-
+S25883	1999-043A	[Globalstar]	1999 Aug 17 	2010 Aug	2011 Aug	2011 Sep 28	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/369	  114.1 	    1413	    1414	 52.0 	2011 Sep 30 	    2109	    2111	 52.00 	-
+S25884	1999-043B	[Globalstar]	1999 Aug 17 	2010 Aug	2016 Oct  3	2016 Dec  5	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/369	  114.1 	    1413	    1414	 52.0 	2016 Dec  7 	    2123	    2155	 52.02 	-
+S25885	1999-043C	[Globalstar]	1999 Aug 17 	2005 May	2005 May	2010 Jul 23	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/369	  114.1 	    1413	    1414	 52.0 	2010 Jul 25 	    1952	    1962	 52.01 	-
+S25886	1999-043D	[Globalstar]	1999 Aug 17 	2006 Aug	2010 Sep 30	2010 Dec  2	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/369	  114.1 	    1413	    1414	 52.0 	2010 Dec  4 	    2021	    2023	 52.00 	-
+S25907	1999-049A	Globalstar M058	1999 Sep 22 	2010 May	2010 May  6	2013 Jan 18	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 May 20 	    1573	    1574	 51.99 	-
+S25908	1999-049B	Globalstar M050	1999 Sep 22 	2006 Aug	2008 Jan 18	2008 Aug 10	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2008 Aug 12 	    1641	    1655	 52.00 	-
+S25909	1999-049C	Globalstar M033	1999 Sep 22 	2010 Aug	2012 Sep  7	2012 Dec 13	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2012 Dec 16 	    1592	    1592	 52.00 	-
+S25910	1999-049D	Globalstar M055	1999 Sep 22 	2006 Aug	2009 Oct 22	2010 Jul 30	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Aug  1 	    1546	    1559	 52.00 	-
+S25943	1999-058A	Globalstar M057	1999 Oct 18 	2010 Aug	2010 Dec 23	2014 Jul 30	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Dec 25 	    1469	    1470	 52.00 	-
+S25944	1999-058B	Globalstar M059	1999 Oct 18 	2010 Aug	2016 Mar 10	2016 Jul  2	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2016 Jul  4 	    1680	    1682	 52.00 	-
+S25945	1999-058C	Globalstar M056	1999 Oct 18 	2010 Aug	2014 Nov 25	2015 Apr 24	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2014 Dec 22 	    1577	    1578	 52.00 	-
+S25946	1999-058D	Globalstar M031	1999 Oct 18 	2010 Aug	2012 Sep 20	2014 Mar 28	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2012 Sep 22 	    1476	    1478	 52.00 	-
+S25961	1999-062A	Globalstar M039	1999 Nov 22 	2016 Jan 26	2016 Jan 26	2016 Jan 26	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2016 Jan 28 	    1411	    1416	 51.98 	-
+S25962	1999-062B	Globalstar M034	1999 Nov 22 	2010 Jul	2010 May 10	2014 Apr 11	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2010 Jul 24 	    1611	    1612	 51.99 	-
+S25963	1999-062C	Globalstar M029	1999 Nov 22 	2010 Aug	2016 May  2	2016 May 24	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2016 May 26 	    1679	    1684	 51.98 	-
+S25964	1999-062D	Globalstar M061	1999 Nov 22 	2005 May	2005 May	2007 Aug 30	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2007 Sep  1 	    1782	    1791	 51.98 	-
+S26081	2000-008A	[Globalstar]	2000 Feb  8 	2018 Jan 11	2018 Jan 11	2018 Apr 26	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/379	  103.5 	     913	     932	 52.0 	2018 Apr 28 	    1739	    1747	 51.99 	-
+S26082	2000-008B	[Globalstar]	2000 Feb  8 	2006 Aug	2010 Nov  7	2011 Apr 20	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/379	  103.5 	     913	     930	 52.0 	2011 Apr 22 	    1493	    1494	 52.00 	-
+S26083	2000-008C	[Globalstar]	2000 Feb  8 	2006 Aug	2010 May  7	2010 May 21	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/379	  103.6 	     922	     932	 52.0 	2010 May 23 	    1600	    1604	 52.01 	-
+S26084	2000-008D	[Globalstar]	2000 Feb  8 	2006 Aug	2014 Jul 18	2015 Mar 21	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/379	  103.4 	     913	     929	 52.0 	2015 Feb 22 	    1717	    1718	 52.00 	-
+S31571	2007-020A	Globalstar M065	2007 May 29 	2023 Jun 14	2023 Jun 16	2023 Jun 16	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2023 Jun 18 	    1412	    1421	 51.99 	-
+S31573	2007-020C	Globalstar M069	2007 May 29 	2023 Feb	2024 Sep  5	*	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2024 Oct 12 	    1427	    1428	 51.99 	-
+S31574	2007-020D	Globalstar M072	2007 May 29 	2023 Feb	2024 Nov  1	2025 Apr  7	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2024 Oct 12 	    1413	    1413	 52.01 	-
+S31576	2007-020F	Globalstar M071	2007 May 29 	2025 Jan  8	2024 Dec  3	2025 Jan  8	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2024 Oct 12 	    1412	    1414	 52.01 	-
+S32263	2007-048A	Globalstar M067	2007 Oct 20 	2017 May  5	2017 May  5	2017 May  5	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2017 May  7 	    1503	    1505	 51.97 	-
+S32264	2007-048B	Globalstar M070	2007 Oct 20 	2025 Aug	*	*	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2024 Oct 12 	    1412	    1413	 51.97 	-
+S32265	2007-048C	Globalstar M066	2007 Oct 20 	2023 Feb	2024 Jul 16	2024 Oct 26	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2024 Oct 12 	    1476	    1477	 51.97 	-
+S32266	2007-048D	Globalstar M068	2007 Oct 20 	2012 May  3	2012 May?	2012 May  3	-	Globalstar	-	-	M	B	COM	S	-	-	US	ST/SG/SER.E/688	-	-	-	-	2012 May  8 	    1411	    1414	 51.98 	-

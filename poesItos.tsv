@@ -1,0 +1,7 @@
+#JCAT	Piece	Name	LDate	TLast	TOp	TDate	TF	Program	Plane	Att	Mvr	Class	Category	Result	Control	Discipline	UNState	UNReg	UNPeriod	UNPerigee	UNApogee	UNInc	DispEpoch	DispPeri	DispApo	DispInc	Comment
+S04320	1970-008A	[ITOS 1]	1970 Jan 23 	1971 Jun 17	1971 Jun 17	1971 Jun 17	-	ITOS	-	-	-	C	MET	U	-	-	US	A/AC.105/INF.223	  115.0 	    1428	    1489	101.9 	1970 Feb  4 	    1434	    1481	102.00 	-
+S04793	1970-106A	[NOAA 1]	1970 Dec 11 	1971 Aug 19	1971 Aug 19	1971 Aug 19	-	ITOS	-	-	-	C	MET	U	-	-	US	A/AC.105/INF.229	  114.8 	    1429	    1472	101.9 	1970 Dec 20 	    1428	    1471	101.93 	-
+S06235	1972-082A	[NOAA 2]	1972 Oct 15 	2023 Jan	1975 Jan 10	*	Z	ITOS	-	-	-	C	MET	U	-	-	US	A/AC.105/INF.266	  114.9 	    1451	    1458	101.7 	1972 Oct 19 	    1448	    1458	101.77 	-
+S06920	1973-086A	[NOAA 3]	1973 Nov  6 	1976 Aug 31	1976 Aug 31	1976 Aug 31	-	ITOS	-	-	-	C	MET	U	-	-	US	A/AC.105/INF.291	  116.1 	    1502	    1514	102.0 	1973 Nov 10 	    1502	    1511	102.07 	-
+S07529	1974-089A	[NOAA 4]	1974 Nov 15 	1978 Nov 18	1978 Nov 18	1978 Nov 18	-	ITOS	-	-	-	C	MET	U	-	-	US	A/AC.105/INF.310	  114.9 	    1446	    1462	101.7 	1974 Nov 18 	    1445	    1460	101.75 	-
+S09057	1976-077A	[NOAA 5]	1976 Jul 29 	1979 Jul 16	1979 Jul 16	1979 Jul 16	-	ITOS	-	-	-	C	MET	U	-	-	US	A/AC.105/INF.353	  116.3 	    1507	    1520	102.1 	1976 Aug 17 	    1506	    1520	102.10 	-
